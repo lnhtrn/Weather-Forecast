@@ -2,14 +2,13 @@ import streamlit as st
 from datetime import datetime
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+import requests
 
 import pandas as pd
 import json
 
 """
 # Weather prediction 🌡️
-
-Weather prediction data from 12 p.m. August 3rd for Hanoi.
 """
 
 def get_data_from_json(input_file):
@@ -88,16 +87,40 @@ def temp_plot(df):
     fig.update_yaxes(title_text="Temperature (C)", secondary_y=True, range=[-10,42])
 
     return fig
+
+def gethourlyforecast(location_key, output_file):
+    hourly_forecastURL = "https://dataservice.accuweather.com/forecasts/v1/hourly/12hour/"+location_key+"?apikey="+API+"&details=true&metric=true"
+    print("Requesting information from", hourly_forecastURL)
+    
+    response = requests.get(hourly_forecastURL)
+
+    with open(output_file, mode="w+") as out_file:
+        text = json.dumps(response.json(), indent=4)
+        out_file.write(text)
+
+    return response.json()
             
 
 # Choose the city to display
 city = st.selectbox('Choose city:', options=["Hanoi", "HCM"])
+
+API='mBuY4aPdL9UDYjpwaUy9lYTcHfbrZZIf' #your API name
+countrycode='VN'
+location_key = {"hanoi": "353412", "hcm": "3-433307_1_AL"}
+
+# Run API for fresh data 
+if st.button('Get new prediction data'):
+    output_file = f'output/{city.lower()}_weather.json'
+    gethourlyforecast(location_key[city.lower()], output_file)
 
 input_file = f'output/{city.lower()}_weather.json'
 weather = get_data_from_json(input_file)
 data = json_to_value(weather)
 df = pd.DataFrame(data)
 fig = temp_plot(df)
+
+# Write description
+st.write(f"Weather prediction for {city} from *{df['Hour'][0]}:00 {df['Date'][0]}* to *{df['Hour'].iloc[-1]}:00 {df['Date'].iloc[-1]}*.")
 
 # Plot!
 st.plotly_chart(fig)
